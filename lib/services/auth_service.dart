@@ -2,38 +2,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-/// Supported user roles in the app.
+// ─── Role ─────────────────────────────────────────────────────────────────────
+
 enum UserRole { resident, secretary, security }
 
-extension UserRoleExtension on UserRole {
-  String get value {
-    switch (this) {
-      case UserRole.resident:
-        return 'resident';
-      case UserRole.secretary:
-        return 'secretary';
-      case UserRole.security:
-        return 'security';
-    }
-  }
+extension UserRoleX on UserRole {
+  String get value => name; // 'resident' | 'secretary' | 'security'
 
-  static UserRole? fromString(String role) {
-    switch (role) {
-      case 'resident': return UserRole.resident;
-      case 'secretary': return UserRole.secretary;
-      case 'security': return UserRole.security;
-      default: return null; // empty string hits here → triggers RoleSelectionScreen
-    }
+  static UserRole? fromString(String? s) {
+    if (s == null || s.isEmpty) return null;
+    return UserRole.values.cast<UserRole?>().firstWhere(
+      (e) => e?.name == s,
+      orElse: () => null,
+    );
   }
 }
 
-/// Lightweight model returned after auth operations.
+// ─── AppUser ──────────────────────────────────────────────────────────────────
+
 class AppUser {
   final String uid;
   final String email;
   final String displayName;
-  final UserRole? role;
+  final UserRole? role;       // null = not yet chosen
   final bool isApproved;
+  final String? flatNumber;
+  final String? apartmentId;
 
   const AppUser({
     required this.uid,
@@ -41,157 +35,123 @@ class AppUser {
     required this.displayName,
     required this.role,
     required this.isApproved,
+    this.flatNumber,
+    this.apartmentId,
   });
 
-  factory AppUser.fromMap(Map<String, dynamic> map) {
-    return AppUser(
-      uid: map['uid'] as String,
-      email: map['email'] as String,
-      displayName: map['displayName'] as String? ?? '',
-      role: UserRoleExtension.fromString(map['role'] as String? ?? ''),
-      isApproved: map['isApproved'] as bool? ?? false,
-    );
-  }
-
-  Map<String, dynamic> toMap() => {
-        'uid': uid,
-        'email': email,
-        'displayName': displayName,
-        'role': role?.value,
-        'isApproved': isApproved,
-      };
+  factory AppUser.fromMap(String uid, Map<String, dynamic> m) => AppUser(
+    uid:         uid,
+    email:       m['email']       ?? '',
+    displayName: m['displayName'] ?? '',
+    role:        UserRoleX.fromString(m['role'] as String?),
+    isApproved:  m['isApproved']  ?? false,
+    flatNumber:  m['flatNumber'],
+    apartmentId: m['apartmentId'],
+  );
 }
 
+// ─── AuthService ──────────────────────────────────────────────────────────────
+
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final _auth = FirebaseAuth.instance;
+  final _db   = FirebaseFirestore.instance;
 
-  AppUser? _currentAppUser;
-  AppUser? get currentAppUser => _currentAppUser;
+  AppUser? _user;
+  AppUser? get currentAppUser => _user;
 
-  // ── Auth state stream ──────────────────────────────────────────────────────
-
-  /// Emits the Firebase [User] on every auth change.
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ── Fetch Firestore profile ────────────────────────────────────────────────
+  // ── Fetch profile ──────────────────────────────────────────────────────────
 
-  /// Loads the /users/{uid} doc and caches it in [_currentAppUser].
   Future<AppUser?> fetchUserProfile(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
       if (!doc.exists || doc.data() == null) return null;
-      _currentAppUser = AppUser.fromMap(doc.data()!);
+      _user = AppUser.fromMap(uid, doc.data()!);
       notifyListeners();
-      return _currentAppUser;
+      return _user;
     } catch (e) {
-      debugPrint('AuthService.fetchUserProfile error: $e');
+      debugPrint('fetchUserProfile: $e');
       return null;
     }
   }
 
-  // ── Sign Up ────────────────────────────────────────────────────────────────
+  // ── Sign up — role saved as '' so RoleSelectionScreen is shown ────────────
 
-  /// Creates a Firebase Auth account and writes the initial Firestore profile.
-  /// Role defaults to [UserRole.resident]; call [saveUserRole] after
-  /// role-selection to update it.
   Future<AppUser> signUp({
     required String email,
     required String password,
     required String displayName,
-    String phoneNumber = '',
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
+    final cred = await _auth.createUserWithEmailAndPassword(
+        email: email, password: password);
+    final uid = cred.user!.uid;
+    await cred.user!.updateDisplayName(displayName);
 
-    final user = credential.user!;
-    await user.updateDisplayName(displayName);
-
-    final now = FieldValue.serverTimestamp();
     final data = {
-      'uid': user.uid,
-      'email': email,
+      'email':       email,
       'displayName': displayName,
-      'phoneNumber': phoneNumber,
-      'photoUrl': null,
-      'role': '', // default; updated after role selection
+      'role':        '',          // ← empty: forces role selection
+      'isApproved':  false,
+      'flatNumber':  null,
       'apartmentId': null,
-      'flatNumber': null,
-      'isApproved': false,
-      'fcmToken': null,
-      'createdAt': now,
-      'updatedAt': now,
+      'fcmToken':    null,
+      'createdAt':   FieldValue.serverTimestamp(),
+      'updatedAt':   FieldValue.serverTimestamp(),
     };
+    await _db.collection('users').doc(uid).set(data);
 
-    await _db.collection('users').doc(user.uid).set(data);
-
-    _currentAppUser = AppUser(
-      uid: user.uid,
-      email: email,
-      displayName: displayName,
-      role: null,
-      isApproved: false,
+    _user = AppUser(
+      uid: uid, email: email, displayName: displayName,
+      role: null, isApproved: false,
     );
     notifyListeners();
-    return _currentAppUser!;
+    return _user!;
   }
 
-  // ── Sign In ────────────────────────────────────────────────────────────────
+  // ── Sign in ────────────────────────────────────────────────────────────────
 
-  Future<AppUser?> signIn({
-    required String email,
-    required String password,
-  }) async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    return fetchUserProfile(credential.user!.uid);
+  Future<AppUser?> signIn({required String email, required String password}) async {
+    final cred = await _auth.signInWithEmailAndPassword(
+        email: email, password: password);
+    return fetchUserProfile(cred.user!.uid);
   }
 
-  // ── Save / Update Role ─────────────────────────────────────────────────────
+  // ── Save role (called from RoleSelectionScreen) ────────────────────────────
 
-  /// Persists the chosen role to Firestore and refreshes [_currentAppUser].
   Future<void> saveUserRole(String uid, UserRole role) async {
     await _db.collection('users').doc(uid).update({
-      'role': role.value,
+      'role':      role.value,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-
-    if (_currentAppUser != null) {
-      _currentAppUser = AppUser(
-        uid: _currentAppUser!.uid,
-        email: _currentAppUser!.email,
-        displayName: _currentAppUser!.displayName,
-        role: role,
-        isApproved: _currentAppUser!.isApproved,
+    if (_user != null) {
+      _user = AppUser(
+        uid:         _user!.uid,
+        email:       _user!.email,
+        displayName: _user!.displayName,
+        role:        role,
+        isApproved:  _user!.isApproved,
+        flatNumber:  _user!.flatNumber,
+        apartmentId: _user!.apartmentId,
       );
       notifyListeners();
     }
   }
 
-  // ── Update FCM Token ───────────────────────────────────────────────────────
+  // ── Update FCM token ───────────────────────────────────────────────────────
 
   Future<void> updateFcmToken(String uid, String token) async {
-    await _db.collection('users').doc(uid).update({
-      'fcmToken': token,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _db.collection('users').doc(uid).update({'fcmToken': token});
   }
 
-  // ── Sign Out ───────────────────────────────────────────────────────────────
+  // ── Sign out ───────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {
     await _auth.signOut();
-    _currentAppUser = null;
+    _user = null;
     notifyListeners();
   }
 
-  // ── Password Reset ─────────────────────────────────────────────────────────
-
-  Future<void> sendPasswordResetEmail(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
-  }
+  Future<void> sendPasswordResetEmail(String email) =>
+      _auth.sendPasswordResetEmail(email: email);
 }

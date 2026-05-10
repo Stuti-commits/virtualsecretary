@@ -1,7 +1,6 @@
 name: apartment_secretary
-description: A gated community management app for Residents, Secretaries, and Security Guards.
+description: Gated community management app.
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -18,23 +17,24 @@ dependencies:
   firebase_messaging: ^15.0.4
   firebase_storage: ^12.1.3
 
-  # State Management
+  # State
   provider: ^6.1.2
 
-  # UI & Fonts
+  # UI
   google_fonts: ^6.2.1
   flutter_animate: ^4.5.0
   lottie: ^3.1.2
 
-  # Charts
+  # Charts / data
   fl_chart: ^0.68.0
+  intl: ^0.19.0
+
+  # Media
+  image_picker: ^1.1.2
 
   # Utilities
-  intl: ^0.19.0
-  image_picker: ^1.1.2
   uuid: ^4.4.2
   cached_network_image: ^3.3.1
-  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -43,7 +43,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/
     - assets/lottie/
