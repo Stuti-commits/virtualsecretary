@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "865734776550",
+    "project_id": "virtualsecreatory",
+    "storage_bucket": "virtualsecreatory.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:865734776550:android:e1c65ce5370489f0748d27",
+        "android_client_info": {
+          "package_name": "com.stuti.virtualsecretary.virtualsecretary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTA42-T65kjdZmFE-Jw895UhcPTX3B1XQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
