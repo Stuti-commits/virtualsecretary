@@ -10,13 +10,26 @@ import '../../../services/auth_service.dart';
 import '../../../services/community_service.dart';
 import '../../../widgets/app_widgets.dart';
 
-class ResidentIssuesTab extends StatelessWidget {
+class ResidentIssuesTab extends StatefulWidget {
   const ResidentIssuesTab({super.key});
+
+  @override
+  State<ResidentIssuesTab> createState() => _ResidentIssuesTabState();
+}
+
+class _ResidentIssuesTabState extends State<ResidentIssuesTab> {
+  late final Stream<List<MaintenanceIssue>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AuthService>().currentAppUser!.uid;
+    _stream = CommunityService().streamMyIssues(uid);
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.read<AuthService>().currentAppUser!;
-    final svc  = CommunityService();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D1A),
@@ -30,11 +43,11 @@ class ResidentIssuesTab extends StatelessWidget {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (_) => _FileIssueSheet(user: user, svc: svc),
+          builder: (_) => _FileIssueSheet(user: user, svc: CommunityService()),
         ),
       ),
       body: StreamBuilder<List<MaintenanceIssue>>(
-        stream: svc.streamMyIssues(user.uid),
+        stream: _stream,
         builder: (ctx, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -61,12 +74,18 @@ class ResidentIssuesTab extends StatelessWidget {
 
 // ── Issue card ────────────────────────────────────────────────────────────────
 
-class _IssueCard extends StatelessWidget {
+class _IssueCard extends StatefulWidget {
   final MaintenanceIssue issue;
   const _IssueCard({required this.issue});
 
   @override
+  State<_IssueCard> createState() => _IssueCardState();
+}
+
+class _IssueCardState extends State<_IssueCard> {
+  @override
   Widget build(BuildContext context) {
+    final issue = widget.issue;
     final sc = _statusColor(issue.status);
     final cc = _catColor(issue.category);
 
@@ -74,7 +93,7 @@ class _IssueCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: sc.withOpacity(0.3)),
+        border: Border.all(color: sc.withValues(alpha: 0.3)),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -82,7 +101,7 @@ class _IssueCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: cc.withOpacity(0.15),
+              color: cc.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(issue.category.label,
@@ -122,6 +141,7 @@ class _IssueCard extends StatelessWidget {
       case IssueCategory.electrical: return Colors.orangeAccent;
       case IssueCategory.commonArea: return Colors.tealAccent;
       case IssueCategory.amenities:  return Colors.purpleAccent;
+      case IssueCategory.Others:     return Colors.white;
     }
   }
 }
@@ -316,6 +336,7 @@ class _FileIssueSheetState extends State<_FileIssueSheet> {
       case IssueCategory.electrical: return Icons.bolt_outlined;
       case IssueCategory.commonArea: return Icons.park_outlined;
       case IssueCategory.amenities:  return Icons.pool_outlined;
+      case IssueCategory.Others: return Icons.build_outlined;
     }
   }
 }

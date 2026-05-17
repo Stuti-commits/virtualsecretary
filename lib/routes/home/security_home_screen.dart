@@ -18,12 +18,17 @@ class SecurityHomeScreen extends StatefulWidget {
 
 class _SecurityHomeScreenState extends State<SecurityHomeScreen> {
   int _tab = 0;
+  late final CommunityService _svc;
+  @override
+  void initState() {
+    super.initState();
+    _svc = CommunityService();
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthService>().currentAppUser;
-    final uid  = user?.uid ?? '';
-    final svc  = CommunityService();
+    final guardUid  = user?.uid ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D1A),
@@ -48,11 +53,11 @@ class _SecurityHomeScreenState extends State<SecurityHomeScreen> {
         ],
       ),
       body: _tab == 0
-          ? _ParcelsPanel(svc: svc, guardUid: uid)
-          : _VisitorsPanel(svc: svc, guardUid: uid),
+          ? _ParcelsPanel(svc: _svc, guardUid: guardUid)
+          : _VisitorsPanel(svc: _svc, guardUid: guardUid),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF12122A),
-        indicatorColor: const Color(0xFF26A69A).withOpacity(0.25),
+        indicatorColor: const Color(0xFF26A69A).withValues(alpha :0.25),
         selectedIndex: _tab,
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
@@ -76,15 +81,28 @@ class _SecurityHomeScreenState extends State<SecurityHomeScreen> {
 
 // ── Parcels panel ─────────────────────────────────────────────────────────────
 
-class _ParcelsPanel extends StatelessWidget {
+class _ParcelsPanel extends StatefulWidget {
   final CommunityService svc;
   final String guardUid;
   const _ParcelsPanel({required this.svc, required this.guardUid});
+  @override
+  State<_ParcelsPanel> createState() => _ParcelsPanelState();
+}
+
+class _ParcelsPanelState extends State<_ParcelsPanel> {
+  // ✅ FIX 4: Stream is stored as a field — not recreated on every build().
+  late final Stream<List<ParcelModel>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _stream = widget.svc.streamActiveParcels();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<ParcelModel>>(
-      stream: svc.streamActiveParcels(),
+      stream: _stream,
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -102,8 +120,12 @@ class _ParcelsPanel extends StatelessWidget {
           itemCount: list.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (_, i) =>
-              _SecurityParcelCard(parcel: list[i], svc: svc, guardUid: guardUid),
-        );
+              _SecurityParcelCard(
+                key: ValueKey(list[i].id),
+                parcel: list[i],
+                svc: widget.svc,
+                guardUid: widget.guardUid,
+              ), );
       },
     );
   }
@@ -114,7 +136,7 @@ class _SecurityParcelCard extends StatelessWidget {
   final CommunityService svc;
   final String guardUid;
   const _SecurityParcelCard(
-      {required this.parcel, required this.svc, required this.guardUid});
+      {super.key,required this.parcel, required this.svc, required this.guardUid});
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +148,7 @@ class _SecurityParcelCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: arrived
-              ? const Color(0xFFFFB300).withOpacity(0.5)
+              ? const Color(0xFFFFB300).withValues(alpha :0.5)
               : Colors.white10,
         ),
       ),
@@ -141,7 +163,7 @@ class _SecurityParcelCard extends StatelessWidget {
                   color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
           const Spacer(),
           if (arrived)
-            StatusBadge(label: 'ARRIVED', color: const Color(0xFFFFB300)),
+             StatusBadge(label: 'ARRIVED', color: const Color(0xFFFFB300)),
         ]),
         const SizedBox(height: 10),
         InfoRow(
@@ -189,15 +211,25 @@ class _SecurityParcelCard extends StatelessWidget {
 
 // ── Visitors panel ────────────────────────────────────────────────────────────
 
-class _VisitorsPanel extends StatelessWidget {
+class _VisitorsPanel extends StatefulWidget {
   final CommunityService svc;
   final String guardUid;
   const _VisitorsPanel({required this.svc, required this.guardUid});
+  @override
+  State<_VisitorsPanel> createState() => _VisitorsPanelState();
+}
+class _VisitorsPanelState extends State<_VisitorsPanel> {
+  late final Stream<List<VisitorModel>> _stream;
 
   @override
+  void initState() {
+    super.initState();
+    _stream = widget.svc.streamTodayVisitors();
+  }
+@override
   Widget build(BuildContext context) {
     return StreamBuilder<List<VisitorModel>>(
-      stream: svc.streamTodayVisitors(),
+      stream: _stream,
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -215,7 +247,7 @@ class _VisitorsPanel extends StatelessWidget {
           itemCount: list.length,
           separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (_, i) =>
-              _SecurityVisitorCard(visitor: list[i], svc: svc, guardUid: guardUid),
+              _SecurityVisitorCard( key: ValueKey(list[i].id),visitor: list[i], svc: widget.svc, guardUid: widget.guardUid),
         );
       },
     );
@@ -227,7 +259,7 @@ class _SecurityVisitorCard extends StatelessWidget {
   final CommunityService svc;
   final String guardUid;
   const _SecurityVisitorCard(
-      {required this.visitor, required this.svc, required this.guardUid});
+      {super.key, required this.visitor, required this.svc, required this.guardUid});
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +271,7 @@ class _SecurityVisitorCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: inside
-              ? const Color(0xFFFFB300).withOpacity(0.4)
+              ? const Color(0xFFFFB300).withValues(alpha :0.4)
               : Colors.white10,
         ),
       ),
@@ -248,7 +280,7 @@ class _SecurityVisitorCard extends StatelessWidget {
         Row(children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: const Color(0xFF26A69A).withOpacity(0.15),
+            backgroundColor: const Color(0xFF26A69A).withValues(alpha :0.15),
             child: Text(
               visitor.name.isNotEmpty ? visitor.name[0].toUpperCase() : '?',
               style: GoogleFonts.poppins(

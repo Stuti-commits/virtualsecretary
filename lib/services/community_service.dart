@@ -46,14 +46,14 @@ class CommunityService {
   Future<void> markParcelArrived(String parcelId, String guardUid) =>
       _db.collection('parcels').doc(parcelId).update({
         'status':       ParcelStatus.arrived.value,
-        'arrivedAt':    FieldValue.serverTimestamp(),
+        'arrivedAt':    Timestamp.now(),
         'arrivedByUid': guardUid,
       });
 
   Future<void> markParcelCollected(String parcelId) =>
       _db.collection('parcels').doc(parcelId).update({
         'status':      ParcelStatus.collected.value,
-        'collectedAt': FieldValue.serverTimestamp(),
+        'collectedAt': Timestamp.now(),
       });
 
   /// Security: all expected + arrived parcels, real-time.
@@ -61,16 +61,16 @@ class CommunityService {
       .collection('parcels')
       .where('status', whereIn: ['expected', 'arrived'])
       .orderBy('expectedDate')
-      .snapshots()
-      .map((s) => s.docs.map(ParcelModel.fromDoc).toList());
+      .snapshots(includeMetadataChanges: false)
+      .map((snapshot) => snapshot.docs.map(ParcelModel.fromDoc).toList());
 
   /// Resident: their own parcels, real-time.
   Stream<List<ParcelModel>> streamMyParcels(String uid) => _db
       .collection('parcels')
       .where('residentUid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(ParcelModel.fromDoc).toList());
+      .snapshots(includeMetadataChanges: false)
+      .map((snapshot) => snapshot.docs.map(ParcelModel.fromDoc).toList());
 
   // ═══════════════════════════════════════════════════════════════════
   // VISITORS
@@ -103,14 +103,14 @@ class CommunityService {
   Future<void> markCheckedIn(String visitorId, String guardUid) =>
       _db.collection('visitors').doc(visitorId).update({
         'status':          VisitorStatus.checkedIn.value,
-        'checkedInAt':     FieldValue.serverTimestamp(),
+        'checkedInAt':     Timestamp.now(),
         'checkedInByUid':  guardUid,
       });
 
   Future<void> markCheckedOut(String visitorId) =>
       _db.collection('visitors').doc(visitorId).update({
         'status':       VisitorStatus.checkedOut.value,
-        'checkedOutAt': FieldValue.serverTimestamp(),
+        'checkedOutAt': Timestamp.now(),
       });
 
   /// Security: approved + checked-in visitors expected today.
@@ -123,8 +123,8 @@ class CommunityService {
             isGreaterThanOrEqualTo: Timestamp.fromDate(midnight))
         .where('status', whereIn: ['approved', 'checked_in'])
         .orderBy('expectedTime')
-        .snapshots()
-        .map((s) => s.docs.map(VisitorModel.fromDoc).toList());
+        .snapshots(includeMetadataChanges: false)
+        .map((snapshot) => snapshot.docs.map(VisitorModel.fromDoc).toList());
   }
 
   /// Resident: their own visitor log, real-time.
@@ -132,8 +132,8 @@ class CommunityService {
       .collection('visitors')
       .where('residentUid', isEqualTo: uid)
       .orderBy('expectedTime', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(VisitorModel.fromDoc).toList());
+      .snapshots(includeMetadataChanges: false)
+      .map((snapshot) => snapshot.docs.map(VisitorModel.fromDoc).toList());
 
   // ═══════════════════════════════════════════════════════════════════
   // MAINTENANCE ISSUES
@@ -179,22 +179,22 @@ class CommunityService {
   Future<void> updateIssueStatus(String issueId, IssueStatus newStatus) =>
       _db.collection('maintenance_issues').doc(issueId).update({
         'status':     newStatus.value,
-        'updatedAt':  FieldValue.serverTimestamp(),
-        if (newStatus == IssueStatus.resolved) 'resolvedAt': FieldValue.serverTimestamp(),
+        'updatedAt':  Timestamp.now(),
+        if (newStatus == IssueStatus.resolved) 'resolvedAt': Timestamp.now(),
       });
 
   /// Secretary: all issues newest-first.
   Stream<List<MaintenanceIssue>> streamAllIssues() => _db
       .collection('maintenance_issues')
       .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(MaintenanceIssue.fromDoc).toList());
+      .snapshots(includeMetadataChanges: false)
+      .map((snapshot) => snapshot.docs.map(MaintenanceIssue.fromDoc).toList());
 
   /// Resident: their own issues.
   Stream<List<MaintenanceIssue>> streamMyIssues(String uid) => _db
       .collection('maintenance_issues')
       .where('reportedByUid', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(MaintenanceIssue.fromDoc).toList());
+      .snapshots(includeMetadataChanges: false)
+      .map((snapshot) => snapshot.docs.map(MaintenanceIssue.fromDoc).toList());
 }

@@ -1,96 +1,73 @@
+// This is the existing issues dashboard, extracted into its own tab widget
+// so SecretaryHomeScreen can compose it alongside MeetingsTab and FeesTab.
+// Copy the body of the old SecretaryHomeScreen here.
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
-import '../../models/maintenance_issue_model.dart';
-import '../../services/auth_service.dart';
-import '../../services/community_service.dart';
-import '../../widgets/app_widgets.dart';
+import '../../../models/maintenance_issue_model.dart';
+import '../../../services/community_service.dart';
+import '../../../widgets/app_widgets.dart';
 
-class SecretaryHomeScreen extends StatefulWidget {
-  const SecretaryHomeScreen({super.key});
+class SecretaryIssuesTab extends StatefulWidget {
+  const SecretaryIssuesTab({super.key});
 
   @override
-  State<SecretaryHomeScreen> createState() => _SecretaryHomeScreenState();
+  State<SecretaryIssuesTab> createState() => _SecretaryIssuesTabState();
 }
 
-class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
-  IssueStatus? _filter; // null = all
+class _SecretaryIssuesTabState extends State<SecretaryIssuesTab> {
+  IssueStatus? _filter;
+  late final Stream<List<MaintenanceIssue>> _stream;
+
+  @override
+  void initState() {
+    super.initState();
+    _stream = CommunityService().streamAllIssues();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthService>().currentAppUser;
-    final svc  = CommunityService();
-
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D1A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF12122A),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Secretary Panel',
-                style: GoogleFonts.poppins(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
-            Text(user?.displayName ?? '',
-                style:
-                    GoogleFonts.poppins(fontSize: 11, color: Colors.white38)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, size: 20),
-            onPressed: () => context.read<AuthService>().signOut(),
-          ),
-        ],
-      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Filter bar ────────────────────────────────────────
+          // ── Filter chips ────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(children: [
-                _Chip(
-                  label: 'All',
-                  color: Colors.white54,
-                  selected: _filter == null,
-                  onTap: () => setState(() => _filter = null),
-                ),
+                _Chip(label: 'All',
+                    color: Colors.white54, selected: _filter == null,
+                    onTap: () => setState(() => _filter = null)),
                 const SizedBox(width: 8),
-                _Chip(
-                  label: 'Open',
-                  color: Colors.redAccent,
-                  selected: _filter == IssueStatus.open,
-                  onTap: () => setState(() => _filter = IssueStatus.open),
-                ),
+                _Chip(label: 'Open',
+                    color: Colors.redAccent,
+                    selected: _filter == IssueStatus.open,
+                    onTap: () => setState(() => _filter = IssueStatus.open)),
                 const SizedBox(width: 8),
-                _Chip(
-                  label: 'In Progress',
-                  color: const Color(0xFFFFB300),
-                  selected: _filter == IssueStatus.inProgress,
-                  onTap: () =>
-                      setState(() => _filter = IssueStatus.inProgress),
-                ),
+                _Chip(label: 'In Progress',
+                    color: const Color(0xFFFFB300),
+                    selected: _filter == IssueStatus.inProgress,
+                    onTap: () =>
+                        setState(() => _filter = IssueStatus.inProgress)),
                 const SizedBox(width: 8),
-                _Chip(
-                  label: 'Resolved',
-                  color: Colors.green,
-                  selected: _filter == IssueStatus.resolved,
-                  onTap: () =>
-                      setState(() => _filter = IssueStatus.resolved),
-                ),
+                _Chip(label: 'Resolved',
+                    color: Colors.green,
+                    selected: _filter == IssueStatus.resolved,
+                    onTap: () =>
+                        setState(() => _filter = IssueStatus.resolved)),
               ]),
             ),
           ),
 
-          // ── Issue list ────────────────────────────────────────
+          // ── List ────────────────────────────────────────────
           Expanded(
             child: StreamBuilder<List<MaintenanceIssue>>(
-              stream: svc.streamAllIssues(),
+              stream: _stream,
               builder: (ctx, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(
@@ -115,7 +92,7 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
                   itemCount: list.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (_, i) =>
-                      _SecretaryIssueCard(issue: list[i], svc: svc),
+                      _IssueCard(issue: list[i]),
                 );
               },
             ),
@@ -126,17 +103,17 @@ class _SecretaryHomeScreenState extends State<SecretaryHomeScreen> {
   }
 }
 
-// ── Secretary issue card ──────────────────────────────────────────────────────
+// ── Issue card ────────────────────────────────────────────────────────────────
 
-class _SecretaryIssueCard extends StatelessWidget {
+class _IssueCard extends StatelessWidget {
   final MaintenanceIssue issue;
-  final CommunityService svc;
-  const _SecretaryIssueCard({required this.issue, required this.svc});
+  const _IssueCard({required this.issue});
 
   @override
   Widget build(BuildContext context) {
     final sc = _statusColor(issue.status);
     final cc = _catColor(issue.category);
+    final svc = CommunityService();
 
     return Container(
       decoration: BoxDecoration(
@@ -146,7 +123,6 @@ class _SecretaryIssueCard extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Top row
         Row(children: [
           Container(
             padding:
@@ -157,7 +133,8 @@ class _SecretaryIssueCard extends StatelessWidget {
             ),
             child: Text(issue.category.label,
                 style: GoogleFonts.poppins(
-                    color: cc, fontSize: 10, fontWeight: FontWeight.w600)),
+                    color: cc, fontSize: 10,
+                    fontWeight: FontWeight.w600)),
           ),
           const Spacer(),
           Text(DateFormat('dd MMM').format(issue.createdAt),
@@ -165,10 +142,10 @@ class _SecretaryIssueCard extends StatelessWidget {
                   GoogleFonts.poppins(color: Colors.white24, fontSize: 11)),
         ]),
         const SizedBox(height: 10),
-
         Text(issue.title,
             style: GoogleFonts.poppins(
-                color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                color: Colors.white, fontWeight: FontWeight.w600,
+                fontSize: 15)),
         const SizedBox(height: 4),
         Text(issue.description,
             maxLines: 2,
@@ -177,10 +154,9 @@ class _SecretaryIssueCard extends StatelessWidget {
         const SizedBox(height: 8),
         InfoRow(
           icon: Icons.person_outline_rounded,
-          text: '${issue.reportedByName}  ·  Flat ${issue.flatNumber}',
+          text:
+              '${issue.reportedByName}  ·  Flat ${issue.flatNumber}',
         ),
-
-        // Photo thumbnails
         if (issue.photoUrls.isNotEmpty) ...[
           const SizedBox(height: 10),
           SizedBox(
@@ -197,10 +173,7 @@ class _SecretaryIssueCard extends StatelessWidget {
             ),
           ),
         ],
-
         const SizedBox(height: 14),
-
-        // Status flow controls
         Row(children: [
           StatusBadge(label: issue.status.label, color: sc),
           const SizedBox(width: 10),
@@ -208,8 +181,8 @@ class _SecretaryIssueCard extends StatelessWidget {
             _NextBtn(
               label: '→ In Progress',
               color: const Color(0xFFFFB300),
-              onTap: () =>
-                  svc.updateIssueStatus(issue.id, IssueStatus.inProgress),
+              onTap: () => svc.updateIssueStatus(
+                  issue.id, IssueStatus.inProgress),
             ),
           if (issue.status == IssueStatus.inProgress)
             _NextBtn(
@@ -241,6 +214,7 @@ class _SecretaryIssueCard extends StatelessWidget {
       case IssueCategory.electrical: return Colors.orangeAccent;
       case IssueCategory.commonArea: return Colors.tealAccent;
       case IssueCategory.amenities:  return Colors.purpleAccent;
+      case IssueCategory.Others: return Colors.white;
     }
   }
 }
@@ -249,7 +223,8 @@ class _NextBtn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _NextBtn({required this.label, required this.color, required this.onTap});
+  const _NextBtn(
+      {required this.label, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -264,7 +239,8 @@ class _NextBtn extends StatelessWidget {
           ),
           child: Text(label,
               style: GoogleFonts.poppins(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+                  color: color, fontSize: 11,
+                  fontWeight: FontWeight.w600)),
         ),
       );
 }
@@ -296,8 +272,7 @@ class _Chip extends StatelessWidget {
           child: Text(label,
               style: GoogleFonts.poppins(
                   color: selected ? color : Colors.white38,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+                  fontSize: 12, fontWeight: FontWeight.w600)),
         ),
       );
 }

@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'auth_service.dart';
 
@@ -18,11 +19,41 @@ class NotificationService {
       await _messaging.requestPermission();
       return;
     }
+    await _localNotifications.initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+    );
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint("Notification received!");
 
+      debugPrint(message.notification?.title);
+      debugPrint(message.notification?.body);
+
+      showLocalNotification(message);
+    });
     await _messaging.requestPermission(
       alert: true,
       badge: true,
       sound: true,
+    );
+  }
+  final FlutterLocalNotificationsPlugin _localNotifications =
+  FlutterLocalNotificationsPlugin();
+
+  Future<void> showLocalNotification(RemoteMessage message) async {
+    await _localNotifications.show(
+      0,
+      message.notification?.title ?? '',
+      message.notification?.body ?? '',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'maintenance_channel',
+          'Apartment Notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
     );
   }
 

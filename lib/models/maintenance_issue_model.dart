@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum IssueCategory { plumbing, electrical, commonArea, amenities }
+enum IssueCategory { plumbing, electrical, commonArea, amenities, Others }
 
 extension IssueCategoryX on IssueCategory {
   String get value {
@@ -9,6 +9,7 @@ extension IssueCategoryX on IssueCategory {
       case IssueCategory.electrical:  return 'electrical';
       case IssueCategory.commonArea:  return 'common_area';
       case IssueCategory.amenities:   return 'amenities';
+      case IssueCategory.Others:      return 'others';
     }
   }
 
@@ -18,6 +19,7 @@ extension IssueCategoryX on IssueCategory {
       case IssueCategory.electrical:  return 'Electrical';
       case IssueCategory.commonArea:  return 'Common Area';
       case IssueCategory.amenities:   return 'Amenities';
+      case IssueCategory.Others:      return 'Others';
     }
   }
 
@@ -26,6 +28,7 @@ extension IssueCategoryX on IssueCategory {
       case 'electrical':   return IssueCategory.electrical;
       case 'common_area':  return IssueCategory.commonArea;
       case 'amenities':    return IssueCategory.amenities;
+      case 'others':       return IssueCategory.Others;
       default:             return IssueCategory.plumbing;
     }
   }
@@ -72,6 +75,9 @@ class MaintenanceIssue {
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? resolvedAt;
+
+
+
 
   const MaintenanceIssue({
     required this.id,

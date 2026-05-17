@@ -16,6 +16,21 @@ async function sendToTopic(topic, notification, data = {}) {
     logger.error(`Failed to send topic notification to ${topic}`, error);
   }
 }
+exports.sendResidentNotification =
+functions.firestore
+.document('notifications/{id}')
+.onCreate(async (snap, context) => {
+
+  const data = snap.data();
+
+  await admin.messaging().send({
+    topic: 'role_resident',
+    notification: {
+      title: data.title,
+      body: data.body,
+    },
+  });
+});
 
 exports.onParcelRegistered = onDocumentCreated(
   "parcel_requests/{parcelId}",

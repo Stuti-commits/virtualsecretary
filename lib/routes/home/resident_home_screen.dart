@@ -3,9 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import 'tabs/resident_parcels_tab.dart';
 import 'tabs/resident_visitors_tab.dart';
 import 'tabs/resident_issues_tab.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'tabs/notification_screen.dart';
 
 class ResidentHomeScreen extends StatefulWidget {
   const ResidentHomeScreen({super.key});
@@ -22,6 +25,21 @@ class _ResidentHomeScreenState extends State<ResidentHomeScreen> {
     ResidentVisitorsTab(),
     ResidentIssuesTab(),
   ];
+  @override
+  void initState() {
+    super.initState();
+
+    _setupNotifications();
+  }
+
+  Future<void> _setupNotifications() async {
+    final user = context.read<AuthService>().currentAppUser;
+
+    if (user != null) {
+      await NotificationService.instance.syncSubscriptions(user);
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -44,13 +62,66 @@ class _ResidentHomeScreenState extends State<ResidentHomeScreen> {
           ],
         ),
         actions: [
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user?.uid)
+                .collection('notifications')
+                .where('read', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final unread = snapshot.data?.docs.length ?? 0;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NotificationsScreen(
+                            userId: user!.uid,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  if (unread > 0)
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unread.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
           IconButton(
             icon: const Icon(Icons.logout_rounded, size: 20),
             onPressed: () => context.read<AuthService>().signOut(),
           ),
         ],
       ),
-      body: _tabs[_tab],
+      body: IndexedStack(
+        index: _tab,
+        children: _tabs,
+      ),
       bottomNavigationBar: NavigationBar(
         backgroundColor: const Color(0xFF12122A),
         indicatorColor: const Color(0xFF3949AB).withValues(alpha: 0.3),

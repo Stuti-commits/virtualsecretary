@@ -4,13 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
+import 'services/notification_service.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'routes/login_screen.dart';
 import 'routes/role_selection_screen.dart';
 import 'routes/home/resident_home_screen.dart';
-import 'routes/home/secretary_home_screen.dart';
+import 'routes/secretary/secretary_home_screen.dart';
 import 'routes/home/security_home_screen.dart';
 
 // ── Entry ─────────────────────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ Future<void> main() async {
   ));
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
+  await NotificationService.instance.initialize();
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthService(),
@@ -173,10 +173,10 @@ class _Splash extends StatelessWidget {
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFF3949AB).withValues(alpha: 0.15),
+                color: const Color(0xFF3949AB).withValues(alpha:0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: const Color(0xFF3949AB).withValues(alpha: 0.3)),
+                    color: const Color(0xFF3949AB).withValues(alpha:0.3)),
               ),
               child: const Icon(Icons.apartment_rounded,
                   color: Color(0xFF7986CB), size: 36),

@@ -175,7 +175,7 @@ class _RoleCard extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       decoration: BoxDecoration(
         color: selected
-            ? opt.color.withOpacity(0.12)
+            ? opt.color.withValues(alpha :0.12)
             : const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -195,7 +195,7 @@ class _RoleCard extends StatelessWidget {
                 duration: const Duration(milliseconds: 220),
                 width: 52, height: 52,
                 decoration: BoxDecoration(
-                  color: opt.color.withOpacity(selected ? 0.22 : 0.1),
+                  color: opt.color.withValues(alpha :selected ? 0.22 : 0.1),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(opt.icon, color: opt.color, size: 26),
